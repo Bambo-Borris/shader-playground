@@ -1,0 +1,8 @@
+x64/
+*.dll
+build/
+*.zip
+.vscode/
+out/
+Debug/
+imgui.ini
