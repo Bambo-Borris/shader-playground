@@ -41,13 +41,11 @@ App::~App() { ImGui::SFML::Shutdown(m_window); }
 void App::run()
 {
     sf::Clock loopClock;
-    auto didFailLastCompile { false };
-    std::string errorString;
 
     while (m_window.isOpen()) {
-        auto deltaTime = loopClock.restart();
-        if (deltaTime > sf::seconds(0.25f)) {
-            deltaTime = sf::seconds(0.25f);
+        auto dt = loopClock.restart();
+        if (dt > sf::seconds(0.25f)) {
+            dt = sf::seconds(0.25f);
         }
 
         sf::Event event;
@@ -65,30 +63,8 @@ void App::run()
             };
         }
 
-        logFPS(deltaTime);
-
-        ImGui::SFML::Update(m_window, deltaTime);
-
-        ImGui::Begin("Test Window");
-
-        if (ImGui::InputTextMultiline("Fragment Shader Source", m_shaderSource.data(), m_shaderSource.size())) {
-            auto defaultStr = sf::err().rdbuf();
-            std::stringstream errStream;
-            sf::err().rdbuf(errStream.rdbuf());
-            if (!m_shader.loadFromMemory(m_shaderSource, sf::Shader::Type::Fragment)) {
-                errorString = errStream.str();
-                didFailLastCompile = true;
-            } else
-                didFailLastCompile = false;
-
-            sf::err().rdbuf(defaultStr);
-        }
-
-        if (didFailLastCompile) {
-            ImGui::TextColored(ImVec4(sf::Color::Red), "Shader compile error!");
-            ImGui::Text("%s", errorString.data());
-        }
-        ImGui::End();
+        logFPS(dt);
+        updateUI(dt);
 
         m_renderTexture.clear();
         sf::RectangleShape shape(sf::Vector2f { m_renderTexture.getSize() });
@@ -121,4 +97,70 @@ void App::logFPS(const sf::Time& dt)
         sum = sf::Time::Zero;
         counter = 0;
     }
+}
+
+void App::updateUI(const sf::Time& dt)
+{
+    constexpr auto SIDE_PANEL_WINDOW_WIDTH_PERCENT { 0.2f };
+    constexpr auto BOTTOM_PANEL_WINDOW_WIDTH_PERCENT { 1.f - (1.f * SIDE_PANEL_WINDOW_WIDTH_PERCENT) };
+    constexpr auto BOTTOM_PANEL_WINDOW_HEIGHT_PERCENT { 0.15f };
+
+    ImGui::SFML::Update(m_window, dt);
+    const auto renderWindowSize = sf::Vector2f { m_window.getSize() };
+    const auto sidePanelSize
+        = sf::Vector2f { renderWindowSize.x * SIDE_PANEL_WINDOW_WIDTH_PERCENT, renderWindowSize.y };
+
+    /*
+    Options Window
+    */
+    ImGui::Begin("Options", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+    ImGui::SetWindowSize(sidePanelSize);
+    ImGui::SetWindowPos({ 0, 0 });
+
+    ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.9f);
+    ImGui::Text("Fragment Shader Source");
+    if (ImGui::InputTextMultiline("##",
+                                  m_shaderSource.data(),
+                                  m_shaderSource.size(),
+                                  { 0, 0.6f * sidePanelSize.y },
+                                  ImGuiInputTextFlags_AllowTabInput)) {
+        auto defaultStr = sf::err().rdbuf();
+        std::stringstream errStream;
+        sf::err().rdbuf(errStream.rdbuf());
+        if (!m_shader.loadFromMemory(m_shaderSource, sf::Shader::Type::Fragment)) {
+            m_errorString = errStream.str();
+            m_didFailLastCompile = true;
+        } else
+            m_didFailLastCompile = false;
+
+        sf::err().rdbuf(defaultStr);
+    }
+
+    ImGui::PopItemWidth();
+    ImGui::End();
+
+    /*
+    Errors Window
+    */
+
+    const auto errorsPanelSize = sf::Vector2f { BOTTOM_PANEL_WINDOW_WIDTH_PERCENT * renderWindowSize.x,
+                                                renderWindowSize.y * BOTTOM_PANEL_WINDOW_HEIGHT_PERCENT };
+    ImGui::Begin("Errors", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+    ImGui::SetWindowSize(errorsPanelSize);
+    ImGui::SetWindowPos({ sidePanelSize.x, renderWindowSize.y - errorsPanelSize.y });
+    if (m_didFailLastCompile) {
+        ImGui::TextColored(ImVec4(sf::Color::Red), "Shader compile error!");
+        ImGui::Text("%s", m_errorString.data());
+    }
+    ImGui::End();
+
+    /*
+    Export Window
+    (Still deciding on preferred layout..)
+    */
+
+    // ImGui::Begin("Export", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+    // ImGui::SetWindowSize(sidePanelSize);
+    // ImGui::SetWindowPos({ renderWindowSize.x - sidePanelSize.x, 0 });
+    // ImGui::End();
 }
