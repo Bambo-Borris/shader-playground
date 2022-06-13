@@ -41,7 +41,7 @@ App::~App() { ImGui::SFML::Shutdown(m_window); }
 void App::run()
 {
     sf::Clock loopClock;
-
+    sf::Clock elapsedClock;
     while (m_window.isOpen()) {
         auto dt = loopClock.restart();
         if (dt > sf::seconds(0.25f)) {
@@ -65,6 +65,7 @@ void App::run()
 
         logFPS(dt);
         updateUI(dt);
+        setupShaderUniforms(dt, elapsedClock.getElapsedTime());
 
         m_renderTexture.clear();
         sf::RectangleShape shape(sf::Vector2f { m_renderTexture.getSize() });
@@ -135,7 +136,9 @@ void App::updateUI(const sf::Time& dt)
 
         sf::err().rdbuf(defaultStr);
     }
-
+    ImGui::Text("In built variables");
+    ImGui::Text("u_deltaTime = Delta Time");
+    ImGui::Text("u_elapsedTime = Elapsed Time");
     ImGui::PopItemWidth();
     ImGui::End();
 
@@ -163,4 +166,14 @@ void App::updateUI(const sf::Time& dt)
     // ImGui::SetWindowSize(sidePanelSize);
     // ImGui::SetWindowPos({ renderWindowSize.x - sidePanelSize.x, 0 });
     // ImGui::End();
+}
+
+void App::setupShaderUniforms(const sf::Time& dt, const sf::Time& elapsed)
+{
+    // We failed to compile, so no point trying to pass uniforms
+    if (m_didFailLastCompile)
+        return;
+
+    m_shader.setUniform("u_deltaTime", dt.asSeconds());
+    m_shader.setUniform("u_elapsedTime", elapsed.asSeconds());
 }
