@@ -13,4 +13,7 @@ private:
     void logFPS(const sf::Time& dt);
 
     sf::RenderWindow m_window;
+    sf::RenderTexture m_renderTexture;
+    sf::Shader m_shader;
+    std::string m_shaderSource;
 };
