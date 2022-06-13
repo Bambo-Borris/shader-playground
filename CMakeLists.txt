@@ -28,7 +28,7 @@ target_sources(shader-playground PRIVATE
 target_link_libraries(shader-playground PRIVATE SFML::Graphics SFML::Audio ImGui-SFML::ImGui-SFML spdlog)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_definitions(shader-playground PRIVATE IMPOSSIBLE_ROCKET_DEBUG)
+    target_compile_definitions(shader-playground PRIVATE SHADER_PLAYGROUND_DEBUG)
 endif()
 
 add_custom_target(format
