@@ -12,6 +12,7 @@ public:
 private:
     void logFPS(const sf::Time& dt);
     void updateUI(const sf::Time& dt);
+    void setupShaderUniforms(const sf::Time& dt, const sf::Time& elapsed);
 
     sf::RenderWindow m_window;
     sf::RenderTexture m_renderTexture;
