@@ -20,5 +20,6 @@ private:
     std::string m_shaderSource;
     std::string m_errorString;
     bool m_didFailLastCompile { false };
+    bool m_failedToMakeRenderTexture { false };
     sf::Int32 m_frames { 0 };
 };

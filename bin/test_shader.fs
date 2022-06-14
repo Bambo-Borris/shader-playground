@@ -1,5 +1,7 @@
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
 uniform float u_elapsedTime;
-uniform vec2 u_resolution; 
+uniform int u_frames;
 
 float random (vec2 st) {
 	return fract(sin(dot(
