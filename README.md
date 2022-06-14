@@ -7,20 +7,9 @@ Who knows?
 - A Compiler
 - CMake (>=3.16)
 
-## Build Instructions
+## Build & Run Instructions
 
 ```
 cmake -B build -DBUILD_SHARED_LIBS="FALSE"
-cmake --build build
-```
-
-## Run Instructions
-### Windows
-```
-./build/Debug/shader-playground.exe
-```
-
-### MacOS & Linux 
-```
-./build/shader-playground
+cmake --build build --target run
 ```
