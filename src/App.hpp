@@ -20,4 +20,5 @@ private:
     std::string m_shaderSource;
     std::string m_errorString;
     bool m_didFailLastCompile { false };
+    sf::Int32 m_frames { 0 };
 };

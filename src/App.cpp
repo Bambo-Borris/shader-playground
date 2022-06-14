@@ -33,7 +33,7 @@ App::App()
     if (!sf::Shader::isAvailable())
         throw std::runtime_error("Shaders are not available");
 
-    m_shaderSource.resize(5000);
+    m_shaderSource.resize(1000000);
 }
 
 App::~App() { ImGui::SFML::Shutdown(m_window); }
@@ -80,6 +80,7 @@ void App::run()
         m_window.draw(spr);
         ImGui::SFML::Render(m_window);
         m_window.display();
+        ++m_frames;
     }
 }
 
@@ -141,6 +142,7 @@ void App::updateUI(const sf::Time& dt)
     ImGui::Text("u_elapsedTime = Elapsed Time");
     ImGui::Text("u_resolution = Surface Resolution");
     ImGui::Text("u_mouse = Mouse Screen Position");
+    ImGui::Text("u_frames = Number of frames elapsed");
     ImGui::PopItemWidth();
     ImGui::End();
 
@@ -192,4 +194,5 @@ void App::setupShaderUniforms(const sf::Time& dt, const sf::Time& elapsed)
     mousePosition.y = renderTextureSize.y - mousePosition.y;
 
     m_shader.setUniform("u_mouse", mousePosition);
+    m_shader.setUniform("u_frames", m_frames);
 }
