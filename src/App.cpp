@@ -139,6 +139,8 @@ void App::updateUI(const sf::Time& dt)
     ImGui::Text("In built variables");
     ImGui::Text("u_deltaTime = Delta Time");
     ImGui::Text("u_elapsedTime = Elapsed Time");
+    ImGui::Text("u_resolution = Surface Resolution");
+    ImGui::Text("u_mouse = Mouse Screen Position");
     ImGui::PopItemWidth();
     ImGui::End();
 
@@ -174,6 +176,20 @@ void App::setupShaderUniforms(const sf::Time& dt, const sf::Time& elapsed)
     if (m_didFailLastCompile)
         return;
 
+    const auto renderTextureSize = sf::Vector2f { m_renderTexture.getSize() };
+
     m_shader.setUniform("u_deltaTime", dt.asSeconds());
     m_shader.setUniform("u_elapsedTime", elapsed.asSeconds());
+    m_shader.setUniform("u_resolution", sf::Vector2f { m_renderTexture.getSize() });
+
+    auto mousePosition = sf::Vector2f { sf::Mouse::getPosition(m_window) };
+    const auto subtractAmount
+        = sf::Vector2f { m_window.getView().getCenter().x - static_cast<float>(renderTextureSize.x) / 2.f,
+                         m_window.getView().getCenter().y - static_cast<float>(renderTextureSize.y) / 2.f };
+    mousePosition -= subtractAmount;
+    mousePosition.x = std::clamp(mousePosition.x, 0.0f, renderTextureSize.x);
+    mousePosition.y = std::clamp(mousePosition.y, 0.0f, renderTextureSize.y);
+    mousePosition.y = renderTextureSize.y - mousePosition.y;
+
+    m_shader.setUniform("u_mouse", mousePosition);
 }
