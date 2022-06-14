@@ -1,5 +1,6 @@
 #include "App.hpp"
 
+#include <array>
 #include <imgui-SFML.h>
 #include <imgui.h>
 #include <spdlog/fmt/fmt.h>
@@ -103,7 +104,7 @@ void App::logFPS(const sf::Time& dt)
 
 void App::updateUI(const sf::Time& dt)
 {
-    constexpr auto SIDE_PANEL_WINDOW_WIDTH_PERCENT { 0.2f };
+    constexpr auto SIDE_PANEL_WINDOW_WIDTH_PERCENT { 0.25f };
     constexpr auto BOTTOM_PANEL_WINDOW_WIDTH_PERCENT { 1.f - (1.f * SIDE_PANEL_WINDOW_WIDTH_PERCENT) };
     constexpr auto BOTTOM_PANEL_WINDOW_HEIGHT_PERCENT { 0.15f };
 
@@ -119,12 +120,12 @@ void App::updateUI(const sf::Time& dt)
     ImGui::SetWindowSize(sidePanelSize);
     ImGui::SetWindowPos({ 0, 0 });
 
-    ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.9f);
+    ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.95f);
     ImGui::Text("Fragment Shader Source");
     if (ImGui::InputTextMultiline("##",
                                   m_shaderSource.data(),
                                   m_shaderSource.size(),
-                                  { 0, 0.6f * sidePanelSize.y },
+                                  { 0, 0.4f * sidePanelSize.y },
                                   ImGuiInputTextFlags_AllowTabInput)) {
         auto defaultStr = sf::err().rdbuf();
         std::stringstream errStream;
@@ -137,12 +138,28 @@ void App::updateUI(const sf::Time& dt)
 
         sf::err().rdbuf(defaultStr);
     }
+    ImGui::Separator();
+
     ImGui::Text("In built variables");
     ImGui::Text("u_deltaTime = Delta Time");
     ImGui::Text("u_elapsedTime = Elapsed Time");
     ImGui::Text("u_resolution = Surface Resolution");
     ImGui::Text("u_mouse = Mouse Screen Position");
     ImGui::Text("u_frames = Number of frames elapsed");
+    ImGui::Separator();
+
+    std::array<sf::Int32, 2> dimensions
+        = { static_cast<signed>(m_renderTexture.getSize().x), static_cast<signed>(m_renderTexture.getSize().y) };
+    ImGui::Text("Resolution");
+    if (ImGui::InputInt2("##", dimensions.data())) {
+        if (dimensions[0] > 0 && dimensions[1] > 0) {
+            if (!m_renderTexture.create(
+                    { static_cast<unsigned>(dimensions[0]), static_cast<unsigned>(dimensions[1]) })) {
+                m_failedToMakeRenderTexture = true;
+            }
+        }
+    }
+
     ImGui::PopItemWidth();
     ImGui::End();
 
@@ -158,6 +175,10 @@ void App::updateUI(const sf::Time& dt)
     if (m_didFailLastCompile) {
         ImGui::TextColored(ImVec4(sf::Color::Red), "Shader compile error!");
         ImGui::Text("%s", m_errorString.data());
+    }
+
+    if (m_failedToMakeRenderTexture) {
+        ImGui::TextColored(ImVec4(sf::Color::Red), "Unable to create render texture");
     }
     ImGui::End();
 
