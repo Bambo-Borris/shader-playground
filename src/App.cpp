@@ -9,6 +9,7 @@
 #include <string>
 
 constexpr auto WINDOW_TITLE { "Shader Playground [indev]" };
+constexpr std::size_t SOURCE_STRING_CHAR_COUNT { 1000000 };
 
 App::App()
 {
@@ -34,7 +35,7 @@ App::App()
     if (!sf::Shader::isAvailable())
         throw std::runtime_error("Shaders are not available");
 
-    m_shaderSource.resize(1000000);
+    m_shaderSource.resize(SOURCE_STRING_CHAR_COUNT);
 }
 
 App::~App() { ImGui::SFML::Shutdown(m_window); }
@@ -159,9 +160,22 @@ void App::updateUI(const sf::Time& dt)
             if (!m_renderTexture.create(
                     { static_cast<unsigned>(dimensions[0]), static_cast<unsigned>(dimensions[1]) })) {
                 m_failedToMakeRenderTexture = true;
+            } else {
+                m_failedToMakeRenderTexture = false;
             }
         }
     }
+    ImGui::Separator();
+
+    ImGui::Text("Default Shaders");
+    if (ImGui::Button("Basic"))
+        loadExampleShader(ExampleShaders::Basic);
+
+    if (ImGui::Button("Generic Noise"))
+        loadExampleShader(ExampleShaders::Generic_Noise);
+
+    if (ImGui::Button("Simplex Noise"))
+        loadExampleShader(ExampleShaders::Simplex_Noise);
 
     ImGui::PopItemWidth();
     ImGui::End();
@@ -258,4 +272,26 @@ void App::loadAndCompileShader()
     // Redirect the error stream
     // back to its default state!
     sf::err().rdbuf(defaultStr);
+}
+
+void App::loadExampleShader(ExampleShaders exampleShader)
+{
+    m_shaderSource.clear();
+
+    switch (exampleShader) {
+    case ExampleShaders::Basic:
+        m_shaderSource = BASIC_SHADER_SOURCE;
+        break;
+    case ExampleShaders::Generic_Noise:
+        m_shaderSource = GENERIC_NOISE_SOURCE;
+        break;
+    case ExampleShaders::Simplex_Noise:
+        m_shaderSource = SIMPLEX_SHADER_SOURCE;
+        break;
+    default:
+        assert(false);
+    }
+
+    m_shaderSource.resize(SOURCE_STRING_CHAR_COUNT);
+    loadAndCompileShader();
 }

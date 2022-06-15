@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ExampleShaders.hpp"
+
 #include <SFML/Graphics.hpp>
 
 class App {
@@ -10,10 +12,22 @@ public:
     void run();
 
 private:
+    // Tracks average FPS and sets the Window title to the FPS
+    // value
     void logFPS(const sf::Time& dt);
+
+    // Handles imgui UI objects
     void updateUI(const sf::Time& dt);
+
+    // Update the uniform variables for active shader
     void setupShaderUniforms(const sf::Time& dt, const sf::Time& elapsed);
+
+    // Setup the shader string and compile the shader
     void loadAndCompileShader();
+
+    // Load the provided example shader and set it as the
+    // active shader
+    void loadExampleShader(ExampleShaders exampleShader);
 
     sf::RenderWindow m_window;
     sf::RenderTexture m_renderTexture;
