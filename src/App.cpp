@@ -127,25 +127,28 @@ void App::updateUI(const sf::Time& dt)
                                   m_shaderSource.size(),
                                   { 0, 0.4f * sidePanelSize.y },
                                   ImGuiInputTextFlags_AllowTabInput)) {
-        auto defaultStr = sf::err().rdbuf();
-        std::stringstream errStream;
-        sf::err().rdbuf(errStream.rdbuf());
-        if (!m_shader.loadFromMemory(m_shaderSource, sf::Shader::Type::Fragment)) {
-            m_errorString = errStream.str();
-            m_didFailLastCompile = true;
-        } else
-            m_didFailLastCompile = false;
-
-        sf::err().rdbuf(defaultStr);
+        loadAndCompileShader();
     }
     ImGui::Separator();
 
+    if (ImGui::Checkbox("Use Shadertoy Setup", &m_useShaderToyNames)) {
+        loadAndCompileShader();
+    }
+
     ImGui::Text("In built variables");
-    ImGui::Text("u_deltaTime = Delta Time");
-    ImGui::Text("u_elapsedTime = Elapsed Time");
-    ImGui::Text("u_resolution = Surface Resolution");
-    ImGui::Text("u_mouse = Mouse Screen Position");
-    ImGui::Text("u_frames = Number of frames elapsed");
+    if (!m_useShaderToyNames) {
+        ImGui::Text("u_deltaTime = Delta Time");
+        ImGui::Text("u_elapsedTime = Elapsed Time");
+        ImGui::Text("u_resolution = Surface Resolution");
+        ImGui::Text("u_mouse = Mouse Screen Position");
+        ImGui::Text("u_frames = Number of frames elapsed");
+    } else {
+        ImGui::Text("iTimeDelta = Delta Time");
+        ImGui::Text("iTime = Elapsed Time");
+        ImGui::Text("iResolution = Surface Resolution");
+        ImGui::Text("iMouse = Mouse Screen Position");
+        ImGui::Text("iFrame = Number of frames elapsed");
+    }
     ImGui::Separator();
 
     std::array<sf::Int32, 2> dimensions
@@ -201,10 +204,6 @@ void App::setupShaderUniforms(const sf::Time& dt, const sf::Time& elapsed)
 
     const auto renderTextureSize = sf::Vector2f { m_renderTexture.getSize() };
 
-    m_shader.setUniform("u_deltaTime", dt.asSeconds());
-    m_shader.setUniform("u_elapsedTime", elapsed.asSeconds());
-    m_shader.setUniform("u_resolution", sf::Vector2f { m_renderTexture.getSize() });
-
     auto mousePosition = sf::Vector2f { sf::Mouse::getPosition(m_window) };
     const auto subtractAmount
         = sf::Vector2f { m_window.getView().getCenter().x - static_cast<float>(renderTextureSize.x) / 2.f,
@@ -214,6 +213,49 @@ void App::setupShaderUniforms(const sf::Time& dt, const sf::Time& elapsed)
     mousePosition.y = std::clamp(mousePosition.y, 0.0f, renderTextureSize.y);
     mousePosition.y = renderTextureSize.y - mousePosition.y;
 
-    m_shader.setUniform("u_mouse", mousePosition);
-    m_shader.setUniform("u_frames", m_frames);
+    if (!m_useShaderToyNames) {
+        m_shader.setUniform("u_deltaTime", dt.asSeconds());
+        m_shader.setUniform("u_elapsedTime", elapsed.asSeconds());
+        m_shader.setUniform("u_resolution", sf::Vector2f { m_renderTexture.getSize() });
+        m_shader.setUniform("u_mouse", mousePosition);
+        m_shader.setUniform("u_frames", m_frames);
+    } else {
+        m_shader.setUniform("iTimeDelta", dt.asSeconds());
+        m_shader.setUniform("iTime", elapsed.asSeconds());
+        m_shader.setUniform("iResolution", sf::Vector2f { m_renderTexture.getSize() });
+        m_shader.setUniform("iMouse", mousePosition);
+        m_shader.setUniform("iFrame", m_frames);
+    }
+}
+
+void App::loadAndCompileShader()
+{
+    // Redirect the error stream
+    // so we can log the shader errors
+    // to an imgui window
+    auto defaultStr = sf::err().rdbuf();
+    std::stringstream errStream;
+    sf::err().rdbuf(errStream.rdbuf());
+
+    // We need to append on the uniforms as
+    // string depending on whether or not
+    // we're using the shadertoy form or not
+    std::string combined;
+    if (!m_useShaderToyNames) {
+        combined = m_defaultUniformNames + m_shaderSource;
+    } else {
+        combined = m_shaderToyUniformNames + m_shaderToyMainFunction + m_shaderSource;
+    }
+
+    // Let's compile the shader, if it failed
+    // then we should mark a flag saying it failed
+    if (!m_shader.loadFromMemory(combined, sf::Shader::Type::Fragment)) {
+        m_errorString = errStream.str();
+        m_didFailLastCompile = true;
+    } else
+        m_didFailLastCompile = false;
+
+    // Redirect the error stream
+    // back to its default state!
+    sf::err().rdbuf(defaultStr);
 }
