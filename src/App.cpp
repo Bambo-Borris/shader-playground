@@ -1,6 +1,7 @@
 #include "App.hpp"
 
 #include <array>
+#include <filesystem>
 #include <imgui-SFML.h>
 #include <imgui.h>
 #include <spdlog/fmt/fmt.h>
@@ -18,7 +19,6 @@ App::App()
     m_window.create(sf::VideoMode({ 1024, 720 }), WINDOW_TITLE, sf::Style::Default, ctxt);
     spdlog::set_level(spdlog::level::debug);
     m_window.setFramerateLimit(60);
-    m_window.setKeyRepeatEnabled(false);
 
     sf::Image icon;
     if (!icon.loadFromFile("bin/appicon.png"))
@@ -36,6 +36,9 @@ App::App()
         throw std::runtime_error("Shaders are not available");
 
     m_shaderSource.resize(SOURCE_STRING_CHAR_COUNT);
+
+    for (auto& str : m_textureInputPaths)
+        str.resize(300);
 }
 
 App::~App() { ImGui::SFML::Shutdown(m_window); }
@@ -45,6 +48,7 @@ void App::run()
     sf::Clock loopClock;
     sf::Clock elapsedClock;
     while (m_window.isOpen()) {
+        // spdlog::debug("Has focus? {}", m_window.hasFocus());
         auto dt = loopClock.restart();
         if (dt > sf::seconds(0.25f)) {
             dt = sf::seconds(0.25f);
@@ -71,9 +75,8 @@ void App::run()
 
         m_renderTexture.clear();
         sf::RectangleShape shape(sf::Vector2f { m_renderTexture.getSize() });
-        sf::RenderStates states;
-        states.shader = &m_shader;
-        m_renderTexture.draw(shape, states);
+        shape.setTextureRect({ { 0, 0 }, sf::Vector2i { shape.getSize() } });
+        m_renderTexture.draw(shape, &m_shader);
         m_renderTexture.display();
 
         m_window.clear(sf::Color(75, 75, 75));
@@ -123,7 +126,7 @@ void App::updateUI(const sf::Time& dt)
 
     ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.95f);
     ImGui::Text("Fragment Shader Source");
-    if (ImGui::InputTextMultiline("##",
+    if (ImGui::InputTextMultiline("##source",
                                   m_shaderSource.data(),
                                   m_shaderSource.size(),
                                   { 0, 0.4f * sidePanelSize.y },
@@ -167,6 +170,30 @@ void App::updateUI(const sf::Time& dt)
     }
     ImGui::Separator();
 
+    /*
+    Image channels for shader
+    */
+    for (std::size_t i = 0; i < m_textureInputs.size(); ++i) {
+        const std::string varName = m_useShaderToyNames ? "iChannel" : "u_texture";
+        ImGui::Text("%s%zu", varName.data(), i);
+        if (ImGui::InputText(
+                fmt::format("##texture{}", i).data(), m_textureInputPaths[i].data(), m_textureInputPaths[i].size())) {
+            loadInputChannelTexture(i, m_textureInputPaths[i]);
+        }
+
+        if (m_textureInputLoadResuls[i]) {
+            auto spr = sf::Sprite(m_textureInputs[i]);
+            const auto width = (ImGui::GetWindowWidth() * 0.95f) * 0.75f;
+            const auto scaleFactor = width / spr.getGlobalBounds().width;
+            spr.setScale({ scaleFactor, scaleFactor });
+            ImGui::Image(spr);
+        }
+    }
+    ImGui::Separator();
+
+    /*
+    Example Shaders
+    */
     ImGui::Text("Default Shaders");
     if (ImGui::Button("Basic"))
         loadExampleShader(ExampleShaders::Basic);
@@ -177,13 +204,15 @@ void App::updateUI(const sf::Time& dt)
     if (ImGui::Button("Simplex Noise"))
         loadExampleShader(ExampleShaders::Simplex_Noise);
 
+    if (ImGui::Button("Texture Background"))
+        loadExampleShader(ExampleShaders::TextureBackground);
+
     ImGui::PopItemWidth();
     ImGui::End();
 
     /*
     Errors Window
     */
-
     const auto errorsPanelSize = sf::Vector2f { BOTTOM_PANEL_WINDOW_WIDTH_PERCENT * renderWindowSize.x,
                                                 renderWindowSize.y * BOTTOM_PANEL_WINDOW_HEIGHT_PERCENT };
     ImGui::Begin("Errors", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
@@ -233,17 +262,46 @@ void App::setupShaderUniforms(const sf::Time& dt, const sf::Time& elapsed)
         m_shader.setUniform("u_resolution", sf::Vector2f { m_renderTexture.getSize() });
         m_shader.setUniform("u_mouse", mousePosition);
         m_shader.setUniform("u_frames", m_frames);
+
+        for (std::size_t i = 0; i < m_textureInputLoadResuls.size(); ++i) {
+            if (m_textureInputLoadResuls[i]) {
+                auto var = fmt::format("u_texture{}", i);
+                m_shader.setUniform(var, m_textureInputs[i]);
+            }
+        }
     } else {
         m_shader.setUniform("iTimeDelta", dt.asSeconds());
         m_shader.setUniform("iTime", elapsed.asSeconds());
         m_shader.setUniform("iResolution", sf::Vector2f { m_renderTexture.getSize() });
         m_shader.setUniform("iMouse", mousePosition);
         m_shader.setUniform("iFrame", m_frames);
+
+        for (std::size_t i = 0; i < m_textureInputLoadResuls.size(); ++i) {
+            if (m_textureInputLoadResuls[i]) {
+                auto var = fmt::format("iChannel{}", i);
+                m_shader.setUniform(var, m_textureInputs[i]);
+            }
+        }
     }
 }
 
 void App::loadAndCompileShader()
 {
+    bool foundChar = false;
+    for (auto& c : m_shaderSource) {
+        if (c == '\0') {
+            continue;
+        }
+        foundChar = true;
+        break;
+    }
+
+    if (!foundChar) {
+        m_errorString.clear();
+        m_didFailLastCompile = false;
+        return;
+    }
+
     // Redirect the error stream
     // so we can log the shader errors
     // to an imgui window
@@ -288,10 +346,31 @@ void App::loadExampleShader(ExampleShaders exampleShader)
     case ExampleShaders::Simplex_Noise:
         m_shaderSource = SIMPLEX_SHADER_SOURCE;
         break;
+    case ExampleShaders::TextureBackground:
+        m_shaderSource = TEXTURE_BACKGROUND_SOURCE;
+        break;
     default:
         assert(false);
     }
 
     m_shaderSource.resize(SOURCE_STRING_CHAR_COUNT);
+    m_useShaderToyNames = false;
     loadAndCompileShader();
+}
+
+void App::loadInputChannelTexture(std::size_t channelIndex, std::string_view path)
+{
+    if (!std::filesystem::exists(path)) {
+        // TODO: somehow display an error about this...?
+        spdlog::debug("Unable to load {}", path.data());
+        m_textureInputLoadResuls[channelIndex] = false;
+        return;
+    }
+
+    if (!m_textureInputs[channelIndex].loadFromFile(path.data())) {
+        // TODO: somehow display an error about this...?
+        m_textureInputLoadResuls[channelIndex] = false;
+    }
+
+    m_textureInputLoadResuls[channelIndex] = true;
 }
