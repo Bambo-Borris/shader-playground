@@ -2,7 +2,7 @@
 
 #include <string>
 
-enum class ExampleShaders { Basic, Generic_Noise, Simplex_Noise };
+enum class ExampleShaders { Basic, Generic_Noise, Simplex_Noise, TextureBackground };
 
 constexpr auto BASIC_SHADER_SOURCE = R"str(void main() {
 	gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
@@ -140,4 +140,10 @@ void main() {
     color = vec3(snoise(st)*.5+.5);
 
     gl_FragColor = vec4(color,1.0);
+})str";
+
+constexpr auto TEXTURE_BACKGROUND_SOURCE = R"str(void main() { 
+    vec2 st = gl_FragCoord.xy / u_resolution.xy;
+    st.y = 1.0 - st.y;
+    gl_FragColor = texture2D(u_texture0, st);//vec4(vec3(rnd), 1.0);
 })str";
