@@ -1,4 +1,5 @@
 #include "App.hpp"
+#include "Constants.hpp"
 
 #include <array>
 #include <filesystem>
@@ -6,17 +7,13 @@
 #include <imgui.h>
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
-#include <sstream>
 #include <string>
-
-constexpr auto WINDOW_TITLE { "Shader Playground [indev]" };
-constexpr std::size_t SOURCE_STRING_CHAR_COUNT { 1000000 };
 
 App::App()
 {
     sf::ContextSettings ctxt;
     ctxt.antialiasingLevel = 16;
-    m_window.create(sf::VideoMode({ 1024, 720 }), WINDOW_TITLE, sf::Style::Default, ctxt);
+    m_window.create(sf::VideoMode({ 1024, 720 }), constants::WINDOW_TITLE, sf::Style::Default, ctxt);
     spdlog::set_level(spdlog::level::debug);
     m_window.setFramerateLimit(60);
 
@@ -35,7 +32,7 @@ App::App()
     if (!sf::Shader::isAvailable())
         throw std::runtime_error("Shaders are not available");
 
-    m_shaderSource.resize(SOURCE_STRING_CHAR_COUNT);
+    m_shaderSource.resize(constants::SOURCE_STRING_CHAR_COUNT);
 
     for (auto& str : m_textureInputPaths)
         str.resize(300);
@@ -71,12 +68,30 @@ void App::run()
 
         logFPS(dt);
         updateUI(dt);
-        setupShaderUniforms(dt, elapsedClock.getElapsedTime());
+
+        auto& uniforms = m_shaderMgr.getUniforms();
+        const auto renderTextureSize = sf::Vector2f { m_renderTexture.getSize() };
+
+        uniforms.elapsedTime = elapsedClock.getElapsedTime();
+        uniforms.deltaTime = dt;
+        uniforms.resolution = renderTextureSize;
+
+        uniforms.mousePos = sf::Vector2f { sf::Mouse::getPosition(m_window) };
+        const auto subtractAmount
+            = sf::Vector2f { m_window.getView().getCenter().x - static_cast<float>(renderTextureSize.x) / 2.f,
+                             m_window.getView().getCenter().y - static_cast<float>(renderTextureSize.y) / 2.f };
+        uniforms.mousePos -= subtractAmount;
+        uniforms.mousePos.x = std::clamp(uniforms.mousePos.x, 0.0f, renderTextureSize.x);
+        uniforms.mousePos.y = std::clamp(uniforms.mousePos.y, 0.0f, renderTextureSize.y);
+        uniforms.mousePos.y = renderTextureSize.y - uniforms.mousePos.y;
+        uniforms.frames = m_frames;
+
+        m_shaderMgr.update(m_useShaderToyNames);
 
         m_renderTexture.clear();
         sf::RectangleShape shape(sf::Vector2f { m_renderTexture.getSize() });
         shape.setTextureRect({ { 0, 0 }, sf::Vector2i { shape.getSize() } });
-        m_renderTexture.draw(shape, &m_shader);
+        m_renderTexture.draw(shape, &m_shaderMgr.getShader());
         m_renderTexture.display();
 
         m_window.clear(sf::Color(75, 75, 75));
@@ -99,7 +114,7 @@ void App::logFPS(const sf::Time& dt)
         ++counter;
     } else {
         auto fps = 1.0f / (sum.asSeconds() / static_cast<float>(counter));
-        const auto newTitle = fmt::format("{} - FPS {}", WINDOW_TITLE, static_cast<sf::Uint32>(fps));
+        const auto newTitle = fmt::format("{} - FPS {}", constants::WINDOW_TITLE, static_cast<sf::Uint32>(fps));
         m_window.setTitle(newTitle);
         sum = sf::Time::Zero;
         counter = 0;
@@ -131,12 +146,22 @@ void App::updateUI(const sf::Time& dt)
                                   m_shaderSource.size(),
                                   { 0, 0.4f * sidePanelSize.y },
                                   ImGuiInputTextFlags_AllowTabInput)) {
-        loadAndCompileShader();
+        const auto result = m_shaderMgr.loadAndCompile(m_shaderSource, m_useShaderToyNames);
+        if (result) {
+            m_errorString = result.value();
+        } else {
+            m_errorString.clear();
+        }
     }
     ImGui::Separator();
 
     if (ImGui::Checkbox("Use Shadertoy Setup", &m_useShaderToyNames)) {
-        loadAndCompileShader();
+        const auto result = m_shaderMgr.loadAndCompile(m_shaderSource, m_useShaderToyNames);
+        if (result) {
+            m_errorString = result.value();
+        } else {
+            m_errorString.clear();
+        }
     }
 
     ImGui::Text("In built variables");
@@ -171,9 +196,10 @@ void App::updateUI(const sf::Time& dt)
     ImGui::Separator();
 
     /*
-    Image channels for shader
+    Texture channels for shader
     */
-    for (std::size_t i = 0; i < m_textureInputs.size(); ++i) {
+    ImGui::Text("Textures");
+    for (std::size_t i = 0; i < m_shaderMgr.getUniforms().textures.size(); ++i) {
         const std::string varName = m_useShaderToyNames ? "iChannel" : "u_texture";
         ImGui::Text("%s%zu", varName.data(), i);
         if (ImGui::InputText(
@@ -181,8 +207,8 @@ void App::updateUI(const sf::Time& dt)
             loadInputChannelTexture(i, m_textureInputPaths[i]);
         }
 
-        if (m_textureInputLoadResuls[i]) {
-            auto spr = sf::Sprite(m_textureInputs[i]);
+        if (m_shaderMgr.getUniforms().loadResults[i]) {
+            auto spr = sf::Sprite(m_shaderMgr.getUniforms().textures[i]);
             const auto width = (ImGui::GetWindowWidth() * 0.95f) * 0.75f;
             const auto scaleFactor = width / spr.getGlobalBounds().width;
             spr.setScale({ scaleFactor, scaleFactor });
@@ -218,7 +244,7 @@ void App::updateUI(const sf::Time& dt)
     ImGui::Begin("Errors", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
     ImGui::SetWindowSize(errorsPanelSize);
     ImGui::SetWindowPos({ sidePanelSize.x, renderWindowSize.y - errorsPanelSize.y });
-    if (m_didFailLastCompile) {
+    if (m_shaderMgr.didFailLastCompilation()) {
         ImGui::TextColored(ImVec4(sf::Color::Red), "Shader compile error!");
         ImGui::Text("%s", m_errorString.data());
     }
@@ -237,99 +263,6 @@ void App::updateUI(const sf::Time& dt)
     // ImGui::SetWindowSize(sidePanelSize);
     // ImGui::SetWindowPos({ renderWindowSize.x - sidePanelSize.x, 0 });
     // ImGui::End();
-}
-
-void App::setupShaderUniforms(const sf::Time& dt, const sf::Time& elapsed)
-{
-    // We failed to compile, so no point trying to pass uniforms
-    if (m_didFailLastCompile)
-        return;
-
-    const auto renderTextureSize = sf::Vector2f { m_renderTexture.getSize() };
-
-    auto mousePosition = sf::Vector2f { sf::Mouse::getPosition(m_window) };
-    const auto subtractAmount
-        = sf::Vector2f { m_window.getView().getCenter().x - static_cast<float>(renderTextureSize.x) / 2.f,
-                         m_window.getView().getCenter().y - static_cast<float>(renderTextureSize.y) / 2.f };
-    mousePosition -= subtractAmount;
-    mousePosition.x = std::clamp(mousePosition.x, 0.0f, renderTextureSize.x);
-    mousePosition.y = std::clamp(mousePosition.y, 0.0f, renderTextureSize.y);
-    mousePosition.y = renderTextureSize.y - mousePosition.y;
-
-    if (!m_useShaderToyNames) {
-        m_shader.setUniform("u_deltaTime", dt.asSeconds());
-        m_shader.setUniform("u_elapsedTime", elapsed.asSeconds());
-        m_shader.setUniform("u_resolution", sf::Vector2f { m_renderTexture.getSize() });
-        m_shader.setUniform("u_mouse", mousePosition);
-        m_shader.setUniform("u_frames", m_frames);
-
-        for (std::size_t i = 0; i < m_textureInputLoadResuls.size(); ++i) {
-            if (m_textureInputLoadResuls[i]) {
-                auto var = fmt::format("u_texture{}", i);
-                m_shader.setUniform(var, m_textureInputs[i]);
-            }
-        }
-    } else {
-        m_shader.setUniform("iTimeDelta", dt.asSeconds());
-        m_shader.setUniform("iTime", elapsed.asSeconds());
-        m_shader.setUniform("iResolution", sf::Vector2f { m_renderTexture.getSize() });
-        m_shader.setUniform("iMouse", mousePosition);
-        m_shader.setUniform("iFrame", m_frames);
-
-        for (std::size_t i = 0; i < m_textureInputLoadResuls.size(); ++i) {
-            if (m_textureInputLoadResuls[i]) {
-                auto var = fmt::format("iChannel{}", i);
-                m_shader.setUniform(var, m_textureInputs[i]);
-            }
-        }
-    }
-}
-
-void App::loadAndCompileShader()
-{
-    bool foundChar = false;
-    for (auto& c : m_shaderSource) {
-        if (c == '\0') {
-            continue;
-        }
-        foundChar = true;
-        break;
-    }
-
-    if (!foundChar) {
-        m_errorString.clear();
-        m_didFailLastCompile = false;
-        return;
-    }
-
-    // Redirect the error stream
-    // so we can log the shader errors
-    // to an imgui window
-    auto defaultStr = sf::err().rdbuf();
-    std::stringstream errStream;
-    sf::err().rdbuf(errStream.rdbuf());
-
-    // We need to append on the uniforms as
-    // string depending on whether or not
-    // we're using the shadertoy form or not
-    std::string combined;
-    if (!m_useShaderToyNames) {
-        combined = m_defaultUniformNames + m_shaderSource;
-    } else {
-        combined = m_shaderToyUniformNames + m_shaderToyMainFunction + m_shaderSource;
-    }
-
-    // Let's compile the shader, if it failed
-    // then we should mark a flag saying it failed
-    if (!m_shader.loadFromMemory(combined, sf::Shader::Type::Fragment)) {
-        m_errorString = errStream.str();
-        m_didFailLastCompile = true;
-    } else
-        m_didFailLastCompile = false;
-
-    // Redirect the error stream
-    // back to its default state!
-    sf::err().rdbuf(defaultStr);
 }
 
 void App::loadExampleShader(ExampleShaders exampleShader)
@@ -353,9 +286,14 @@ void App::loadExampleShader(ExampleShaders exampleShader)
         assert(false);
     }
 
-    m_shaderSource.resize(SOURCE_STRING_CHAR_COUNT);
+    m_shaderSource.resize(constants::SOURCE_STRING_CHAR_COUNT);
     m_useShaderToyNames = false;
-    loadAndCompileShader();
+    const auto result = m_shaderMgr.loadAndCompile(m_shaderSource, m_useShaderToyNames);
+    if (result) {
+        m_errorString = result.value();
+    } else {
+        m_errorString.clear();
+    }
 }
 
 void App::loadInputChannelTexture(std::size_t channelIndex, std::string_view path)
@@ -363,14 +301,14 @@ void App::loadInputChannelTexture(std::size_t channelIndex, std::string_view pat
     if (!std::filesystem::exists(path)) {
         // TODO: somehow display an error about this...?
         spdlog::debug("Unable to load {}", path.data());
-        m_textureInputLoadResuls[channelIndex] = false;
+        m_shaderMgr.getUniforms().loadResults[channelIndex] = false;
         return;
     }
 
-    if (!m_textureInputs[channelIndex].loadFromFile(path.data())) {
+    if (!m_shaderMgr.getUniforms().textures[channelIndex].loadFromFile(path.data())) {
         // TODO: somehow display an error about this...?
-        m_textureInputLoadResuls[channelIndex] = false;
+        m_shaderMgr.getUniforms().loadResults[channelIndex] = false;
     }
 
-    m_textureInputLoadResuls[channelIndex] = true;
+    m_shaderMgr.getUniforms().loadResults[channelIndex] = true;
 }
