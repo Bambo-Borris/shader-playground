@@ -33,6 +33,7 @@ App::App()
         throw std::runtime_error("Shaders are not available");
 
     m_shaderSource.resize(constants::SOURCE_STRING_CHAR_COUNT);
+    m_errorQueue.resize(static_cast<std::size_t>(ErrorMessageType::MAX));
 }
 
 App::~App() { ImGui::SFML::Shutdown(m_window); }
@@ -145,9 +146,9 @@ void App::updateUI(const sf::Time& dt)
                                   ImGuiInputTextFlags_AllowTabInput)) {
         const auto result = m_shaderMgr.loadAndCompile(m_shaderSource, m_useShaderToyNames);
         if (result) {
-            m_errorString = result.value();
+            m_errorQueue[static_cast<std::size_t>(ErrorMessageType::Shader)] = result.value();
         } else {
-            m_errorString.clear();
+            m_errorQueue[static_cast<std::size_t>(ErrorMessageType::Shader)].clear();
         }
     }
     ImGui::Separator();
@@ -155,9 +156,9 @@ void App::updateUI(const sf::Time& dt)
     if (ImGui::Checkbox("Use Shadertoy Setup", &m_useShaderToyNames)) {
         const auto result = m_shaderMgr.loadAndCompile(m_shaderSource, m_useShaderToyNames);
         if (result) {
-            m_errorString = result.value();
+            m_errorQueue[static_cast<std::size_t>(ErrorMessageType::Shader)] = result.value();
         } else {
-            m_errorString.clear();
+            m_errorQueue[static_cast<std::size_t>(ErrorMessageType::Shader)].clear();
         }
     }
 
@@ -199,11 +200,24 @@ void App::updateUI(const sf::Time& dt)
 
     for (std::size_t i = 0; i < constants::TEXTURE_CHANNELS_COUNT; ++i) {
         const std::string varName = m_useShaderToyNames ? "iChannel" : "u_texture";
-        std::string texturePath;
-        texturePath.resize(500);
+        std::string texturePath = m_textureMgr.getTexturePath(i);
+        texturePath.resize(300);
         ImGui::Text("%s%zu", varName.data(), i);
         if (ImGui::InputText(fmt::format("##texture{}", i).data(), texturePath.data(), texturePath.size())) {
-            m_textureMgr.setPathAndLoad(i, texturePath);
+            if (texturePath[0] == '\0')
+                texturePath.clear();
+
+            const auto result = m_textureMgr.setPathAndLoad(i, texturePath);
+
+            // If we got an error we'll set the queue error string
+            // if not we'll just clear the error string just in case
+            // it still contains an error
+            const std::size_t errorQueueIndex = static_cast<std::size_t>(ErrorMessageType::Texture0) + i;
+            if (result) {
+                m_errorQueue[errorQueueIndex] = result.value();
+            } else {
+                m_errorQueue[errorQueueIndex].clear();
+            }
         }
 
         if (m_textureMgr.getTexture(i)) {
@@ -243,9 +257,31 @@ void App::updateUI(const sf::Time& dt)
     ImGui::Begin("Errors", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
     ImGui::SetWindowSize(errorsPanelSize);
     ImGui::SetWindowPos({ sidePanelSize.x, renderWindowSize.y - errorsPanelSize.y });
-    if (m_shaderMgr.didFailLastCompilation()) {
-        ImGui::TextColored(ImVec4(sf::Color::Red), "Shader compile error!");
-        ImGui::Text("%s", m_errorString.data());
+    for (std::size_t i = 0; i < static_cast<std::size_t>(ErrorMessageType::MAX); ++i) {
+        if (m_errorQueue[i].empty())
+            continue;
+        const auto asEnum = static_cast<ErrorMessageType>(i);
+        switch (asEnum) {
+        case ErrorMessageType::Shader:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Shader compile error!");
+            break;
+        case ErrorMessageType::Texture0:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 0 load error!");
+            break;
+        case ErrorMessageType::Texture1:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 1 load error!");
+            break;
+        case ErrorMessageType::Texture2:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 2 load error!");
+            break;
+        case ErrorMessageType::Texture3:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 3 load error!");
+            break;
+        default:
+            assert(false);
+            break;
+        }
+        ImGui::Text("%s", m_errorQueue[i].data());
     }
 
     if (m_failedToMakeRenderTexture) {
@@ -289,8 +325,8 @@ void App::loadExampleShader(ExampleShaders exampleShader)
     m_useShaderToyNames = false;
     const auto result = m_shaderMgr.loadAndCompile(m_shaderSource, m_useShaderToyNames);
     if (result) {
-        m_errorString = result.value();
+        m_errorQueue[static_cast<std::size_t>(ErrorMessageType::Shader)] = result.value();
     } else {
-        m_errorString.clear();
+        m_errorQueue[static_cast<std::size_t>(ErrorMessageType::Shader)].clear();
     }
 }
