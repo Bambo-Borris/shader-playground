@@ -2,6 +2,7 @@
 
 #include "ExampleShaders.hpp"
 #include "ShaderManager.hpp"
+#include "TextureManager.hpp"
 
 #include <SFML/Graphics.hpp>
 #include <array>
@@ -25,14 +26,11 @@ private:
     // active shader
     void loadExampleShader(ExampleShaders exampleShader);
 
-    // Load a texture into the provided input channel
-    void loadInputChannelTexture(std::size_t channelIndex, std::string_view path);
-
     sf::RenderWindow m_window;
     sf::RenderTexture m_renderTexture;
     ShaderManager m_shaderMgr;
+    TextureManager m_textureMgr;
     std::string m_shaderSource;
-    std::array<std::string, 4> m_textureInputPaths;
     std::string m_errorString;
     
     bool m_failedToMakeRenderTexture { false };

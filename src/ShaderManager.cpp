@@ -1,4 +1,5 @@
 #include "ShaderManager.hpp"
+#include "TextureManager.hpp"
 
 #include <SFML/System/Err.hpp>
 #include <spdlog/fmt/fmt.h>
@@ -6,7 +7,7 @@
 
 ShaderManager::ShaderManager() { }
 
-void ShaderManager::update(bool useShadertoy)
+void ShaderManager::update(bool useShadertoy, TextureManager& textureMgr)
 { // We failed to compile, so no point trying to pass uniforms
     if (m_didFailLastCompile)
         return;
@@ -18,10 +19,10 @@ void ShaderManager::update(bool useShadertoy)
         m_shader.setUniform("u_mouse", m_uniforms.mousePos);
         m_shader.setUniform("u_frames", m_uniforms.frames);
 
-        for (std::size_t i = 0; i < m_uniforms.loadResults.size(); ++i) {
-            if (m_uniforms.loadResults[i]) {
+        for (std::size_t i = 0; i < constants::TEXTURE_CHANNELS_COUNT; ++i) {
+            if (textureMgr.getTexture(i)) {
                 auto var = fmt::format("u_texture{}", i);
-                m_shader.setUniform(var, m_uniforms.textures[i]);
+                m_shader.setUniform(var, *textureMgr.getTexture(i));
             }
         }
     } else {
@@ -31,10 +32,10 @@ void ShaderManager::update(bool useShadertoy)
         m_shader.setUniform("iMouse", m_uniforms.mousePos);
         m_shader.setUniform("iFrame", m_uniforms.frames);
 
-        for (std::size_t i = 0; i < m_uniforms.loadResults.size(); ++i) {
-            if (m_uniforms.loadResults[i]) {
+        for (std::size_t i = 0; i < constants::TEXTURE_CHANNELS_COUNT; ++i) {
+            if (textureMgr.getTexture(i)) {
                 auto var = fmt::format("iChannel{}", i);
-                m_shader.setUniform(var, m_uniforms.textures[i]);
+                m_shader.setUniform(var, textureMgr.getTexture(i));
             }
         }
     }

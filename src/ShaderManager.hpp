@@ -9,6 +9,8 @@
 #include <optional>
 #include <string>
 
+class TextureManager; 
+
 class ShaderManager {
 public:
     struct ShaderUniforms {
@@ -17,12 +19,10 @@ public:
         sf::Time elapsedTime;
         sf::Time deltaTime;
         sf::Int32 frames { 0 };
-        std::array<sf::Texture, constants::TEXTURE_CHANNELS_COUNT> textures;
-        std::array<bool, constants::TEXTURE_CHANNELS_COUNT> loadResults = { false, false, false, false };
     };
 
     ShaderManager();
-    void update(bool useShadertoy);
+    void update(bool useShadertoy, TextureManager& textureMgr);
     [[nodiscard]] std::optional<std::string> loadAndCompile(std::string_view source, bool useShadertoy);
 
     [[nodiscard]] auto getUniforms() -> ShaderUniforms& { return m_uniforms; }
