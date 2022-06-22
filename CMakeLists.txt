@@ -25,7 +25,8 @@ endif()
 target_sources(shader-playground PRIVATE
     src/Main.cpp
     src/App.cpp
-    src/ShaderManager.cpp)
+    src/ShaderManager.cpp
+    src/TextureManager.cpp)
 target_link_libraries(shader-playground PRIVATE SFML::Graphics SFML::Audio ImGui-SFML::ImGui-SFML spdlog)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")

@@ -33,9 +33,6 @@ App::App()
         throw std::runtime_error("Shaders are not available");
 
     m_shaderSource.resize(constants::SOURCE_STRING_CHAR_COUNT);
-
-    for (auto& str : m_textureInputPaths)
-        str.resize(300);
 }
 
 App::~App() { ImGui::SFML::Shutdown(m_window); }
@@ -86,7 +83,7 @@ void App::run()
         uniforms.mousePos.y = renderTextureSize.y - uniforms.mousePos.y;
         uniforms.frames = m_frames;
 
-        m_shaderMgr.update(m_useShaderToyNames);
+        m_shaderMgr.update(m_useShaderToyNames, m_textureMgr);
 
         m_renderTexture.clear();
         sf::RectangleShape shape(sf::Vector2f { m_renderTexture.getSize() });
@@ -199,16 +196,18 @@ void App::updateUI(const sf::Time& dt)
     Texture channels for shader
     */
     ImGui::Text("Textures");
-    for (std::size_t i = 0; i < m_shaderMgr.getUniforms().textures.size(); ++i) {
+
+    for (std::size_t i = 0; i < constants::TEXTURE_CHANNELS_COUNT; ++i) {
         const std::string varName = m_useShaderToyNames ? "iChannel" : "u_texture";
+        std::string texturePath;
+        texturePath.resize(500);
         ImGui::Text("%s%zu", varName.data(), i);
-        if (ImGui::InputText(
-                fmt::format("##texture{}", i).data(), m_textureInputPaths[i].data(), m_textureInputPaths[i].size())) {
-            loadInputChannelTexture(i, m_textureInputPaths[i]);
+        if (ImGui::InputText(fmt::format("##texture{}", i).data(), texturePath.data(), texturePath.size())) {
+            m_textureMgr.setPathAndLoad(i, texturePath);
         }
 
-        if (m_shaderMgr.getUniforms().loadResults[i]) {
-            auto spr = sf::Sprite(m_shaderMgr.getUniforms().textures[i]);
+        if (m_textureMgr.getTexture(i)) {
+            auto spr = sf::Sprite(*m_textureMgr.getTexture(i));
             const auto width = (ImGui::GetWindowWidth() * 0.95f) * 0.75f;
             const auto scaleFactor = width / spr.getGlobalBounds().width;
             spr.setScale({ scaleFactor, scaleFactor });
@@ -294,21 +293,4 @@ void App::loadExampleShader(ExampleShaders exampleShader)
     } else {
         m_errorString.clear();
     }
-}
-
-void App::loadInputChannelTexture(std::size_t channelIndex, std::string_view path)
-{
-    if (!std::filesystem::exists(path)) {
-        // TODO: somehow display an error about this...?
-        spdlog::debug("Unable to load {}", path.data());
-        m_shaderMgr.getUniforms().loadResults[channelIndex] = false;
-        return;
-    }
-
-    if (!m_shaderMgr.getUniforms().textures[channelIndex].loadFromFile(path.data())) {
-        // TODO: somehow display an error about this...?
-        m_shaderMgr.getUniforms().loadResults[channelIndex] = false;
-    }
-
-    m_shaderMgr.getUniforms().loadResults[channelIndex] = true;
 }
