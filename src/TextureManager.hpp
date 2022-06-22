@@ -4,6 +4,7 @@
 
 #include <SFML/Graphics/Texture.hpp>
 #include <array>
+#include <optional>
 #include <string>
 
 class TextureManager {
@@ -15,9 +16,11 @@ public:
     };
 
     // Set the path of the texture & then attempt to load it
-    void setPathAndLoad(std::size_t textureIndex, std::string_view path);
+    [[nodiscard]] std::optional<std::string> setPathAndLoad(std::size_t textureIndex, std::string_view path);
 
     [[nodiscard]] sf::Texture* getTexture(std::size_t textureIndex);
+
+    [[nodiscard]] std::string getTexturePath(std::size_t textureIndex) const;
 
 private:
     std::array<TextureEntry, constants::TEXTURE_CHANNELS_COUNT> m_textureUniforms;
