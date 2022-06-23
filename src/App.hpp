@@ -15,7 +15,7 @@ public:
     void run();
 
 private:
-    enum class ErrorMessageType { Shader, Texture0, Texture1, Texture2, Texture3, MAX };
+    enum class ErrorMessageType { Shader, RenderTexture, Texture0, Texture1, Texture2, Texture3, MAX };
     // Tracks average FPS and sets the Window title to the FPS
     // value
     void logFPS(const sf::Time& dt);
@@ -44,7 +44,6 @@ private:
     std::string m_shaderSource;
     std::vector<std::string> m_errorQueue;
 
-    bool m_failedToMakeRenderTexture { false };
     bool m_useShaderToyNames { false };
     sf::Int32 m_frames { 0 };
 };

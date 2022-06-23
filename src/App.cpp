@@ -207,9 +207,10 @@ void App::updateOptionsTab(const sf::Vector2f& sidePanelSize)
         if (dimensions[0] > 0 && dimensions[1] > 0) {
             if (!m_renderTexture.create(
                     { static_cast<unsigned>(dimensions[0]), static_cast<unsigned>(dimensions[1]) })) {
-                m_failedToMakeRenderTexture = true;
+                m_errorQueue[static_cast<std::size_t>(ErrorMessageType::RenderTexture)]
+                    = fmt::format("Unable to create render texture of size {} x {}", dimensions[0], dimensions[1]);
             } else {
-                m_failedToMakeRenderTexture = false;
+                m_errorQueue[static_cast<std::size_t>(ErrorMessageType::RenderTexture)].clear();
             }
         }
     }
@@ -310,6 +311,9 @@ void App::updateErrorPanel(const sf::Vector2f& sidePanelSize)
         case ErrorMessageType::Shader:
             ImGui::TextColored(ImVec4(sf::Color::Red), "Shader compile error!");
             break;
+        case ErrorMessageType::RenderTexture:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Render texture create error!");
+            break;
         case ErrorMessageType::Texture0:
             ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 0 load error!");
             break;
@@ -327,10 +331,6 @@ void App::updateErrorPanel(const sf::Vector2f& sidePanelSize)
             break;
         }
         ImGui::Text("%s", m_errorQueue[i].data());
-    }
-
-    if (m_failedToMakeRenderTexture) {
-        ImGui::TextColored(ImVec4(sf::Color::Red), "Unable to create render texture");
     }
     ImGui::End();
 }
