@@ -146,55 +146,7 @@ void App::updateUI(const sf::Time& dt)
     ImGui::EndTabBar();
     ImGui::End();
 
-    /*
-    Errors Window
-    */
-    const auto errorsPanelSize = sf::Vector2f { constants::BOTTOM_PANEL_WINDOW_WIDTH_PERCENT * renderWindowSize.x,
-                                                renderWindowSize.y * constants::BOTTOM_PANEL_WINDOW_HEIGHT_PERCENT };
-    ImGui::Begin("Errors", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
-    ImGui::SetWindowSize(errorsPanelSize);
-    ImGui::SetWindowPos({ sidePanelSize.x, renderWindowSize.y - errorsPanelSize.y });
-    for (std::size_t i = 0; i < static_cast<std::size_t>(ErrorMessageType::MAX); ++i) {
-        if (m_errorQueue[i].empty())
-            continue;
-        const auto asEnum = static_cast<ErrorMessageType>(i);
-        switch (asEnum) {
-        case ErrorMessageType::Shader:
-            ImGui::TextColored(ImVec4(sf::Color::Red), "Shader compile error!");
-            break;
-        case ErrorMessageType::Texture0:
-            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 0 load error!");
-            break;
-        case ErrorMessageType::Texture1:
-            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 1 load error!");
-            break;
-        case ErrorMessageType::Texture2:
-            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 2 load error!");
-            break;
-        case ErrorMessageType::Texture3:
-            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 3 load error!");
-            break;
-        default:
-            assert(false);
-            break;
-        }
-        ImGui::Text("%s", m_errorQueue[i].data());
-    }
-
-    if (m_failedToMakeRenderTexture) {
-        ImGui::TextColored(ImVec4(sf::Color::Red), "Unable to create render texture");
-    }
-    ImGui::End();
-
-    /*
-    Export Window
-    (Still deciding on preferred layout..)
-    */
-
-    // ImGui::Begin("Export", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
-    // ImGui::SetWindowSize(sidePanelSize);
-    // ImGui::SetWindowPos({ renderWindowSize.x - sidePanelSize.x, 0 });
-    // ImGui::End();
+    updateErrorPanel(sidePanelSize);
 }
 
 void App::updateOptionsTab(const sf::Vector2f& sidePanelSize)
@@ -306,6 +258,47 @@ void App::updateExampleShadersTab()
 
     if (ImGui::Button("Texture Background"))
         loadExampleShader(ExampleShaders::TextureBackground);
+}
+
+void App::updateErrorPanel(const sf::Vector2f& sidePanelSize)
+{
+    const auto renderWindowSize { sf::Vector2f { m_window.getSize() } };
+    const auto errorsPanelSize = sf::Vector2f { constants::BOTTOM_PANEL_WINDOW_WIDTH_PERCENT * renderWindowSize.x,
+                                                renderWindowSize.y * constants::BOTTOM_PANEL_WINDOW_HEIGHT_PERCENT };
+    ImGui::Begin("Errors", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+    ImGui::SetWindowSize(errorsPanelSize);
+    ImGui::SetWindowPos({ sidePanelSize.x, renderWindowSize.y - errorsPanelSize.y });
+    for (std::size_t i = 0; i < static_cast<std::size_t>(ErrorMessageType::MAX); ++i) {
+        if (m_errorQueue[i].empty())
+            continue;
+        const auto asEnum = static_cast<ErrorMessageType>(i);
+        switch (asEnum) {
+        case ErrorMessageType::Shader:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Shader compile error!");
+            break;
+        case ErrorMessageType::Texture0:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 0 load error!");
+            break;
+        case ErrorMessageType::Texture1:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 1 load error!");
+            break;
+        case ErrorMessageType::Texture2:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 2 load error!");
+            break;
+        case ErrorMessageType::Texture3:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 3 load error!");
+            break;
+        default:
+            assert(false);
+            break;
+        }
+        ImGui::Text("%s", m_errorQueue[i].data());
+    }
+
+    if (m_failedToMakeRenderTexture) {
+        ImGui::TextColored(ImVec4(sf::Color::Red), "Unable to create render texture");
+    }
+    ImGui::End();
 }
 
 void App::loadExampleShader(ExampleShaders exampleShader)

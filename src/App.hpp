@@ -27,6 +27,8 @@ private:
 
     void updateExampleShadersTab();
 
+    void updateErrorPanel(const sf::Vector2f& sidePanelSize);
+
     // Load the provided example shader and set it as the
     // active shader
     void loadExampleShader(ExampleShaders exampleShader);
