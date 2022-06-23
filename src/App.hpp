@@ -23,6 +23,10 @@ private:
     // Handles imgui UI objects
     void updateUI(const sf::Time& dt);
 
+    void updateOptionsTab(const sf::Vector2f& sidePanelSize);
+
+    void updateExampleShadersTab();
+
     // Load the provided example shader and set it as the
     // active shader
     void loadExampleShader(ExampleShaders exampleShader);

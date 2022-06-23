@@ -121,23 +121,84 @@ void App::logFPS(const sf::Time& dt)
 
 void App::updateUI(const sf::Time& dt)
 {
-    constexpr auto SIDE_PANEL_WINDOW_WIDTH_PERCENT { 0.25f };
-    constexpr auto BOTTOM_PANEL_WINDOW_WIDTH_PERCENT { 1.f - (1.f * SIDE_PANEL_WINDOW_WIDTH_PERCENT) };
-    constexpr auto BOTTOM_PANEL_WINDOW_HEIGHT_PERCENT { 0.15f };
-
     ImGui::SFML::Update(m_window, dt);
     const auto renderWindowSize = sf::Vector2f { m_window.getSize() };
     const auto sidePanelSize
-        = sf::Vector2f { renderWindowSize.x * SIDE_PANEL_WINDOW_WIDTH_PERCENT, renderWindowSize.y };
+        = sf::Vector2f { renderWindowSize.x * constants::SIDE_PANEL_WINDOW_WIDTH_PERCENT, renderWindowSize.y };
 
-    /*
-    Options Window
-    */
     ImGui::Begin("Options", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
     ImGui::SetWindowSize(sidePanelSize);
     ImGui::SetWindowPos({ 0, 0 });
+    ImGui::BeginTabBar("##tabbar");
+    if (ImGui::BeginTabItem("Shader Options")) {
+        ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.95f);
+        updateOptionsTab(sidePanelSize);
+        ImGui::EndTabItem();
+        ImGui::PopItemWidth();
+    }
 
-    ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.95f);
+    if (ImGui::BeginTabItem("Example Shaders")) {
+        ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.95f);
+        updateExampleShadersTab();
+        ImGui::EndTabItem();
+        ImGui::PopItemWidth();
+    }
+    ImGui::EndTabBar();
+    ImGui::End();
+
+    /*
+    Errors Window
+    */
+    const auto errorsPanelSize = sf::Vector2f { constants::BOTTOM_PANEL_WINDOW_WIDTH_PERCENT * renderWindowSize.x,
+                                                renderWindowSize.y * constants::BOTTOM_PANEL_WINDOW_HEIGHT_PERCENT };
+    ImGui::Begin("Errors", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+    ImGui::SetWindowSize(errorsPanelSize);
+    ImGui::SetWindowPos({ sidePanelSize.x, renderWindowSize.y - errorsPanelSize.y });
+    for (std::size_t i = 0; i < static_cast<std::size_t>(ErrorMessageType::MAX); ++i) {
+        if (m_errorQueue[i].empty())
+            continue;
+        const auto asEnum = static_cast<ErrorMessageType>(i);
+        switch (asEnum) {
+        case ErrorMessageType::Shader:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Shader compile error!");
+            break;
+        case ErrorMessageType::Texture0:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 0 load error!");
+            break;
+        case ErrorMessageType::Texture1:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 1 load error!");
+            break;
+        case ErrorMessageType::Texture2:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 2 load error!");
+            break;
+        case ErrorMessageType::Texture3:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 3 load error!");
+            break;
+        default:
+            assert(false);
+            break;
+        }
+        ImGui::Text("%s", m_errorQueue[i].data());
+    }
+
+    if (m_failedToMakeRenderTexture) {
+        ImGui::TextColored(ImVec4(sf::Color::Red), "Unable to create render texture");
+    }
+    ImGui::End();
+
+    /*
+    Export Window
+    (Still deciding on preferred layout..)
+    */
+
+    // ImGui::Begin("Export", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+    // ImGui::SetWindowSize(sidePanelSize);
+    // ImGui::SetWindowPos({ renderWindowSize.x - sidePanelSize.x, 0 });
+    // ImGui::End();
+}
+
+void App::updateOptionsTab(const sf::Vector2f& sidePanelSize)
+{
     ImGui::Text("Fragment Shader Source");
     if (ImGui::InputTextMultiline("##source",
                                   m_shaderSource.data(),
@@ -229,10 +290,10 @@ void App::updateUI(const sf::Time& dt)
         }
     }
     ImGui::Separator();
+}
 
-    /*
-    Example Shaders
-    */
+void App::updateExampleShadersTab()
+{
     ImGui::Text("Default Shaders");
     if (ImGui::Button("Basic"))
         loadExampleShader(ExampleShaders::Basic);
@@ -245,59 +306,6 @@ void App::updateUI(const sf::Time& dt)
 
     if (ImGui::Button("Texture Background"))
         loadExampleShader(ExampleShaders::TextureBackground);
-
-    ImGui::PopItemWidth();
-    ImGui::End();
-
-    /*
-    Errors Window
-    */
-    const auto errorsPanelSize = sf::Vector2f { BOTTOM_PANEL_WINDOW_WIDTH_PERCENT * renderWindowSize.x,
-                                                renderWindowSize.y * BOTTOM_PANEL_WINDOW_HEIGHT_PERCENT };
-    ImGui::Begin("Errors", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
-    ImGui::SetWindowSize(errorsPanelSize);
-    ImGui::SetWindowPos({ sidePanelSize.x, renderWindowSize.y - errorsPanelSize.y });
-    for (std::size_t i = 0; i < static_cast<std::size_t>(ErrorMessageType::MAX); ++i) {
-        if (m_errorQueue[i].empty())
-            continue;
-        const auto asEnum = static_cast<ErrorMessageType>(i);
-        switch (asEnum) {
-        case ErrorMessageType::Shader:
-            ImGui::TextColored(ImVec4(sf::Color::Red), "Shader compile error!");
-            break;
-        case ErrorMessageType::Texture0:
-            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 0 load error!");
-            break;
-        case ErrorMessageType::Texture1:
-            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 1 load error!");
-            break;
-        case ErrorMessageType::Texture2:
-            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 2 load error!");
-            break;
-        case ErrorMessageType::Texture3:
-            ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 3 load error!");
-            break;
-        default:
-            assert(false);
-            break;
-        }
-        ImGui::Text("%s", m_errorQueue[i].data());
-    }
-
-    if (m_failedToMakeRenderTexture) {
-        ImGui::TextColored(ImVec4(sf::Color::Red), "Unable to create render texture");
-    }
-    ImGui::End();
-
-    /*
-    Export Window
-    (Still deciding on preferred layout..)
-    */
-
-    // ImGui::Begin("Export", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
-    // ImGui::SetWindowSize(sidePanelSize);
-    // ImGui::SetWindowPos({ renderWindowSize.x - sidePanelSize.x, 0 });
-    // ImGui::End();
 }
 
 void App::loadExampleShader(ExampleShaders exampleShader)
