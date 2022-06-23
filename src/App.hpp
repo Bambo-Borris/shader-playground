@@ -27,11 +27,15 @@ private:
 
     void updateExampleShadersTab();
 
+    void updateExportTab();
+
     void updateErrorPanel(const sf::Vector2f& sidePanelSize);
 
     // Load the provided example shader and set it as the
     // active shader
     void loadExampleShader(ExampleShaders exampleShader);
+
+    void saveFrameToFile(std::string_view filename) const;
 
     sf::RenderWindow m_window;
     sf::RenderTexture m_renderTexture;

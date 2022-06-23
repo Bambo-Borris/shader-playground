@@ -130,16 +130,25 @@ void App::updateUI(const sf::Time& dt)
     ImGui::SetWindowSize(sidePanelSize);
     ImGui::SetWindowPos({ 0, 0 });
     ImGui::BeginTabBar("##tabbar");
+
+    const auto itemWidth = ImGui::GetWindowWidth() * 0.95f;
     if (ImGui::BeginTabItem("Shader Options")) {
-        ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.95f);
+        ImGui::PushItemWidth(itemWidth);
         updateOptionsTab(sidePanelSize);
         ImGui::EndTabItem();
         ImGui::PopItemWidth();
     }
 
     if (ImGui::BeginTabItem("Example Shaders")) {
-        ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.95f);
+        ImGui::PushItemWidth(itemWidth);
         updateExampleShadersTab();
+        ImGui::EndTabItem();
+        ImGui::PopItemWidth();
+    }
+
+    if (ImGui::BeginTabItem("Export to Image")) {
+        ImGui::PushItemWidth(itemWidth);
+        updateExportTab();
         ImGui::EndTabItem();
         ImGui::PopItemWidth();
     }
@@ -260,6 +269,31 @@ void App::updateExampleShadersTab()
         loadExampleShader(ExampleShaders::TextureBackground);
 }
 
+void App::updateExportTab()
+{
+    static std::string filename;
+    filename.resize(300);
+    std::string extension;
+
+    ImGui::Text("Image Name");
+    ImGui::InputText("##inputExportPath", filename.data(), filename.size());
+
+    auto filenameCopy = filename;
+    filenameCopy.erase(std::find(filenameCopy.begin(), filenameCopy.end(), '\0'), filenameCopy.end());
+
+    if (ImGui::Button("Export to .PNG"))
+        extension = ".png";
+
+    if (ImGui::Button("Export to .JPG"))
+        extension = ".jpg";
+
+    if (ImGui::Button("Export to .BMP"))
+        extension = ".bmp";
+
+    if (!filenameCopy.empty() && !extension.empty())
+        saveFrameToFile(filenameCopy + extension);
+}
+
 void App::updateErrorPanel(const sf::Vector2f& sidePanelSize)
 {
     const auto renderWindowSize { sf::Vector2f { m_window.getSize() } };
@@ -329,5 +363,15 @@ void App::loadExampleShader(ExampleShaders exampleShader)
         m_errorQueue[static_cast<std::size_t>(ErrorMessageType::Shader)] = result.value();
     } else {
         m_errorQueue[static_cast<std::size_t>(ErrorMessageType::Shader)].clear();
+    }
+}
+
+void App::saveFrameToFile(std::string_view filename) const
+{
+    const auto& texture = m_renderTexture.getTexture();
+    const auto image = texture.copyToImage();
+    if (!image.saveToFile(filename)) {
+        // TODO: raise an error here
+        spdlog::debug("Unable to save to {}", filename);
     }
 }
