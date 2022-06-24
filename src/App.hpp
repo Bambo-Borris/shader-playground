@@ -15,7 +15,7 @@ public:
     void run();
 
 private:
-    enum class ErrorMessageType { Shader, RenderTexture, Texture0, Texture1, Texture2, Texture3, MAX };
+    enum class ErrorMessageType { Shader, RenderTexture, Texture0, Texture1, Texture2, Texture3, ExportImage, MAX };
     // Tracks average FPS and sets the Window title to the FPS
     // value
     void logFPS(const sf::Time& dt);
@@ -35,7 +35,7 @@ private:
     // active shader
     void loadExampleShader(ExampleShaders exampleShader);
 
-    void saveFrameToFile(std::string_view filename) const;
+    bool saveFrameToFile(std::string_view filename) const;
 
     sf::RenderWindow m_window;
     sf::RenderTexture m_renderTexture;

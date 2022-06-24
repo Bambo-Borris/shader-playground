@@ -291,8 +291,18 @@ void App::updateExportTab()
     if (ImGui::Button("Export to .BMP"))
         extension = ".bmp";
 
-    if (!filenameCopy.empty() && !extension.empty())
-        saveFrameToFile(filenameCopy + extension);
+    if (extension.empty())
+        return;
+
+    if (!filenameCopy.empty()) {
+        if (!saveFrameToFile(filenameCopy + extension))
+            m_errorQueue[static_cast<std::size_t>(ErrorMessageType::ExportImage)]
+                = fmt::format("Unable to save file {}{}", filenameCopy, extension);
+        else
+            m_errorQueue[static_cast<std::size_t>(ErrorMessageType::ExportImage)].clear();
+    } else {
+        m_errorQueue[static_cast<std::size_t>(ErrorMessageType::ExportImage)] = "Invalid image filename";
+    }
 }
 
 void App::updateErrorPanel(const sf::Vector2f& sidePanelSize)
@@ -325,6 +335,9 @@ void App::updateErrorPanel(const sf::Vector2f& sidePanelSize)
             break;
         case ErrorMessageType::Texture3:
             ImGui::TextColored(ImVec4(sf::Color::Red), "Texture slot 3 load error!");
+            break;
+        case ErrorMessageType::ExportImage:
+            ImGui::TextColored(ImVec4(sf::Color::Red), "Export image to file error!");
             break;
         default:
             assert(false);
@@ -366,12 +379,9 @@ void App::loadExampleShader(ExampleShaders exampleShader)
     }
 }
 
-void App::saveFrameToFile(std::string_view filename) const
+bool App::saveFrameToFile(std::string_view filename) const
 {
     const auto& texture = m_renderTexture.getTexture();
     const auto image = texture.copyToImage();
-    if (!image.saveToFile(filename)) {
-        // TODO: raise an error here
-        spdlog::debug("Unable to save to {}", filename);
-    }
+    return image.saveToFile(filename);
 }
