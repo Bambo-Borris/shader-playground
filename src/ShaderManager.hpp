@@ -18,7 +18,7 @@ public:
         sf::Vector2f mousePos;
         sf::Time elapsedTime;
         sf::Time deltaTime;
-        sf::Int32 frames { 0 };
+        std::int32_t frames { 0 };
     };
 
     ShaderManager();

@@ -36,5 +36,5 @@ private:
 
     bool m_failedToMakeRenderTexture { false };
     bool m_useShaderToyNames { false };
-    sf::Int32 m_frames { 0 };
+    std::int32_t m_frames { 0 };
 };

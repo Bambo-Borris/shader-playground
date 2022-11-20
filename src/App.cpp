@@ -3,6 +3,7 @@
 
 #include <array>
 #include <filesystem>
+#include <imconfig-SFML.h>
 #include <imgui-SFML.h>
 #include <imgui.h>
 #include <spdlog/fmt/fmt.h>
@@ -112,7 +113,7 @@ void App::logFPS(const sf::Time& dt)
         ++counter;
     } else {
         auto fps = 1.0f / (sum.asSeconds() / static_cast<float>(counter));
-        const auto newTitle = fmt::format("{} - FPS {}", constants::WINDOW_TITLE, static_cast<sf::Uint32>(fps));
+        const auto newTitle = fmt::format("{} - FPS {}", constants::WINDOW_TITLE, static_cast<std::uint32_t>(fps));
         m_window.setTitle(newTitle);
         sum = sf::Time::Zero;
         counter = 0;
@@ -134,7 +135,7 @@ void App::updateUI(const sf::Time& dt)
     Options Window
     */
     ImGui::Begin("Options", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
-    ImGui::SetWindowSize(sidePanelSize);
+    ImGui::SetWindowSize({sidePanelSize.x, sidePanelSize.y});
     ImGui::SetWindowPos({ 0, 0 });
 
     ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.95f);
@@ -178,7 +179,7 @@ void App::updateUI(const sf::Time& dt)
     }
     ImGui::Separator();
 
-    std::array<sf::Int32, 2> dimensions
+    std::array<std::int32_t, 2> dimensions
         = { static_cast<signed>(m_renderTexture.getSize().x), static_cast<signed>(m_renderTexture.getSize().y) };
     ImGui::Text("Resolution");
     if (ImGui::InputInt2("##", dimensions.data())) {

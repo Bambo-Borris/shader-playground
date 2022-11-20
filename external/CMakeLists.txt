@@ -2,7 +2,7 @@ include(FetchContent)
 
 FetchContent_Declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG 7dd001e5c039df99a5ddf822aa7f084f1604374f)
+    GIT_TAG master)
 FetchContent_MakeAvailable(SFML)
 
 FetchContent_Declare(ImGui
@@ -14,7 +14,7 @@ FetchContent_GetProperties(ImGui SOURCE_DIR IMGUI_DIR)
 set(IMGUI_SFML_FIND_SFML OFF)
 FetchContent_Declare(ImGui-SFML
     GIT_REPOSITORY https://github.com/eliasdaler/imgui-sfml
-    GIT_TAG 29dbc25b5a4f3e7bde4a07472395071457a7d2ee)
+    GIT_TAG master)
 FetchContent_MakeAvailable(ImGui-SFML)
 
 FetchContent_Declare(spdlog
